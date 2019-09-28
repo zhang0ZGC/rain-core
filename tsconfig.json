@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+      // "module": "commonjs",
+      "module": "es6",
+      "target": "es5",
+      //  "strict": true,
+      "sourceMap": true,
+      "locale": "zh-CN",
+      "outDir": "./dist",
+      // moduleResolution:node:`folder/index` can short to `folder`
+      "moduleResolution": "node",
+      "lib": ["es5", "es6", "dom"],
+      "esModuleInterop": true,
+      "baseUrl": "./",
+      // "paths": {
+      //  "@/*": ["*"]
+      // },
+      "declaration": true,
+      "declarationDir": "./types"
+    },
+    "exclude": [
+      "node_modules"
+    ],
+    "include": ["./src/**/*"]
+  }
