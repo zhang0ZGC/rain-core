@@ -32,5 +32,14 @@
     "tslib": "^1.10.0",
     "typescript": "^3.6.3"
   },
+  "files": [
+    "dist",
+    "lib",
+    "src",
+    "types",
+    "jest.config.js",
+    "tsconfig.json",
+    "README.md"
+  ],
   "sideEffects": false
 }
