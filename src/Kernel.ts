@@ -35,7 +35,7 @@ class Kernel extends ServiceContainer implements KernelInterface{
 
   constructor(debug: boolean = false){
     super();
-    this.debug = debug;
+    this.debug = !!debug;
 
     this.dispatcher = new EventDispatcher();
 
@@ -126,10 +126,8 @@ class Kernel extends ServiceContainer implements KernelInterface{
    * @param provider
    */
   protected bootProvider(provider: ServiceProviderInterface){
-    if ('boot' in provider){
-      // provider.boot.call(this);
-      provider.boot();
-    }
+    // provider.boot.call(this);
+    provider.boot();
   }
 
   private initBundles(){

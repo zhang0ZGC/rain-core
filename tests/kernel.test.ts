@@ -6,7 +6,8 @@ import {Greet, TestService} from "./providers/TestProvider";
 describe("Kernel", () => {
   let kernel: KernelInterface;
   beforeAll((done) => {
-    kernel = new Kernel(false);
+    kernel = new Kernel(true);
+    kernel = new Kernel();
 
     kernel.register(CoreServiceProvider);
 
@@ -30,6 +31,16 @@ describe("Kernel", () => {
 
   test('Test kernel', () => {
     expect(kernel).toBeInstanceOf(Kernel);
+  });
+
+  test('Assigned Core to window', () => {
+    // set window instance
+    Object.defineProperty(global, 'window', {
+      value: {},
+    })
+    // @ts-ignore
+    // delete global.window;
+    kernel.register(CoreServiceProvider);
   });
 
   test('Register service after booted', () => {
