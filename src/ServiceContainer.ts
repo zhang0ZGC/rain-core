@@ -348,6 +348,7 @@ export default abstract class ServiceContainer implements ContainerInterface {
       if (this.isSingleton(name)) {
         this.instances[name] = instance;
       }
+      // @todo if is not singleton, resolved may be always false;
       this.resolved[name] = true;
       return instance;
     });

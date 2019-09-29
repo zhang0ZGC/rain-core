@@ -20,7 +20,7 @@ export interface ServiceProviderInterface {
 }
 
 export interface ServiceProviderConstructor {
-  new (kernel: KernelInterface, args): ServiceProviderInterface;
+  new (kernel: KernelInterface, options): ServiceProviderInterface;
   readonly prototype: ServiceProviderInterface;
 }
 
@@ -33,7 +33,7 @@ export interface ServiceProviderConstructor {
  */
 export abstract class ServiceProvider implements ServiceProviderInterface{
 
-  constructor(public kernel: Kernel, args?) {
+  constructor(public kernel: Kernel, protected options={}) {
     this.kernel = kernel;
   }
 
