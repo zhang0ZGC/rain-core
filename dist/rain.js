@@ -275,6 +275,7 @@
                 if (_this.isSingleton(name)) {
                     _this.instances[name] = instance;
                 }
+                // @todo if is not singleton, resolved may be always false;
                 _this.resolved[name] = true;
                 return instance;
             });
@@ -334,12 +335,20 @@
          */
         EventDispatcher.prototype.dispatch = function (event, eventName) {
             if (eventName === void 0) { eventName = null; }
-            // @TODO 一次性事件调用完成后需移除事件监听
             if (eventName in this.listeners) {
                 var listeners = this.listeners[eventName];
                 this.callListeners(listeners, eventName, event);
             }
             return event;
+        };
+        /**
+         * Alias of dispatch
+         * @param event
+         * @param eventName
+         */
+        EventDispatcher.prototype.emit = function (event, eventName) {
+            if (eventName === void 0) { eventName = null; }
+            return this.dispatch.apply(this, arguments);
         };
         /**
          * Alias of addListener.
@@ -349,8 +358,7 @@
          */
         EventDispatcher.prototype.on = function (eventName, listener, once) {
             if (once === void 0) { once = false; }
-            this.addListener(eventName, listener, once);
-            return this;
+            return this.addListener(eventName, listener, once);
         };
         /**
          * Alias of addListener(eventName, listener, true)
@@ -358,8 +366,7 @@
          * @param listener
          */
         EventDispatcher.prototype.once = function (eventName, listener) {
-            this.addListener(eventName, listener, true);
-            return this;
+            return this.addListener(eventName, listener, true);
         };
         /**
          * Alias of removeListener.
@@ -367,8 +374,7 @@
          * @param listener
          */
         EventDispatcher.prototype.off = function (eventName, listener) {
-            this.removeListener(eventName, listener);
-            return this;
+            return this.removeListener(eventName, listener);
         };
         EventDispatcher.prototype.addListener = function (eventName, listener, once) {
             if (once === void 0) { once = false; }
@@ -438,6 +444,7 @@
         /**
          * Sort listener to.
          * Todo: 按字母排序，使相同命名空间的listener在一起
+         * Todo: 指定排序字段，按值排序
          * @param eventName
          */
         EventDispatcher.prototype.sortListeners = function (eventName) {
@@ -463,12 +470,17 @@
          * @param event
          */
         EventDispatcher.prototype.callListeners = function (listeners, eventName, event) {
+            var listener;
             for (var i = 0; i < listeners.length; i++) {
                 if (event.isPropagationStopped()) {
                     break;
                 }
-                listeners[i].listener(event);
-                // listeners[i].listener.apply(this, event);
+                listener = listeners[i];
+                if (listener.once) {
+                    this.removeListener(eventName, listener.listener);
+                }
+                listener.listener(event);
+                // listener.listener.apply(this, event);
             }
         };
         return EventDispatcher;
@@ -484,7 +496,7 @@
              */
             _this.serviceProviders = [];
             _this.booted = false;
-            _this.debug = debug;
+            _this.debug = !!debug;
             _this.dispatcher = new EventDispatcher();
             // this.instance('kernel', this);
             // this.instance('container', this);
@@ -545,6 +557,7 @@
          * e.g. Event, Router, Logger ,etc
          */
         Kernel.prototype.registerBaseServiceProvider = function () {
+            console.warn('registerBaseServerProvider method is deprecated.');
         };
         /**
          * Register services
@@ -559,10 +572,8 @@
          * @param provider
          */
         Kernel.prototype.bootProvider = function (provider) {
-            if ('boot' in provider) {
-                // provider.boot.call(this);
-                provider.boot();
-            }
+            // provider.boot.call(this);
+            provider.boot();
         };
         Kernel.prototype.initBundles = function () {
         };
@@ -580,8 +591,10 @@
      * @see https://learnku.com/articles/6189/laravel-service-provider-detailed-concept
      */
     var ServiceProvider = /** @class */ (function () {
-        function ServiceProvider(kernel, args) {
+        function ServiceProvider(kernel, options) {
+            if (options === void 0) { options = {}; }
             this.kernel = kernel;
+            this.options = options;
             this.kernel = kernel;
         }
         /**

@@ -1,3 +1,7 @@
+interface ListenerItem {
+    listener: Function;
+    once?: boolean;
+}
 export interface EventDispatcherInterface {
     /**
      * Dispatch events.
@@ -24,6 +28,12 @@ declare class EventDispatcher {
      * @inheritDoc
      */
     dispatch(event: Event, eventName?: string): Event;
+    /**
+     * Alias of dispatch
+     * @param event
+     * @param eventName
+     */
+    emit(event: Event, eventName?: string): any;
     /**
      * Alias of addListener.
      * @param eventName
@@ -58,6 +68,7 @@ declare class EventDispatcher {
     /**
      * Sort listener to.
      * Todo: 按字母排序，使相同命名空间的listener在一起
+     * Todo: 指定排序字段，按值排序
      * @param eventName
      */
     protected sortListeners(eventName: string): void;
@@ -67,9 +78,6 @@ declare class EventDispatcher {
      * @param eventName
      * @param event
      */
-    protected callListeners(listeners: Array<{
-        listener: Function;
-        once?: boolean;
-    }>, eventName: string, event: Event): void;
+    protected callListeners(listeners: ListenerItem[], eventName: string, event: Event): void;
 }
 export default EventDispatcher;

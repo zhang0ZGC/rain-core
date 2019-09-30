@@ -12,7 +12,7 @@ export interface ServiceProviderInterface {
     destroy(): void;
 }
 export interface ServiceProviderConstructor {
-    new (kernel: KernelInterface, args: any): ServiceProviderInterface;
+    new (kernel: KernelInterface, options: any): ServiceProviderInterface;
     readonly prototype: ServiceProviderInterface;
 }
 /**
@@ -24,7 +24,8 @@ export interface ServiceProviderConstructor {
  */
 export declare abstract class ServiceProvider implements ServiceProviderInterface {
     kernel: Kernel;
-    constructor(kernel: Kernel, args?: any);
+    protected options: {};
+    constructor(kernel: Kernel, options?: {});
     /**
      * 注册服务
      * 在容器中注册绑定
