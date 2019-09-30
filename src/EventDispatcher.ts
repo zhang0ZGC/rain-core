@@ -1,3 +1,8 @@
+interface ListenerItem{
+  listener: Function,
+  once?: boolean,
+}
+
 export interface EventDispatcherInterface {
   /**
    * Dispatch events.
@@ -58,8 +63,6 @@ class EventDispatcher {
    * @inheritDoc
    */
   public dispatch(event: Event, eventName: string = null){
-
-    // @TODO 一次性事件调用完成后需移除事件监听
     if (eventName in this.listeners) {
       const listeners = this.listeners[eventName];
       this.callListeners(listeners, eventName, event);
@@ -69,14 +72,22 @@ class EventDispatcher {
   }
 
   /**
+   * Alias of dispatch
+   * @param event 
+   * @param eventName 
+   */
+  public emit(event: Event, eventName: string = null){
+    return this.dispatch.apply(this, arguments);
+  }
+
+  /**
    * Alias of addListener.
    * @param eventName
    * @param listener
    * @param once
    */
   public on(eventName: string, listener: Function, once: boolean = false): this{
-    this.addListener(eventName, listener, once);
-    return this;
+    return this.addListener(eventName, listener, once);
   }
 
   /**
@@ -85,8 +96,7 @@ class EventDispatcher {
    * @param listener
    */
   public once(eventName: string, listener: Function): this{
-    this.addListener(eventName, listener, true);
-    return this;
+    return this.addListener(eventName, listener, true);
   }
 
   /**
@@ -95,8 +105,7 @@ class EventDispatcher {
    * @param listener
    */
   public off(eventName: string, listener?: Function): this{
-    this.removeListener(eventName, listener);
-    return this;
+    return this.removeListener(eventName, listener);
   }
 
   public addListener(eventName: string, listener: Function, once: boolean= false): this{
@@ -171,6 +180,7 @@ class EventDispatcher {
   /**
    * Sort listener to.
    * Todo: 按字母排序，使相同命名空间的listener在一起
+   * Todo: 指定排序字段，按值排序
    * @param eventName
    */
   protected sortListeners(eventName: string){
@@ -199,14 +209,20 @@ class EventDispatcher {
    * @param eventName
    * @param event
    */
-  protected callListeners(listeners: Array<{listener: Function, once?: boolean}>, eventName: string, event: Event){
-
+  protected callListeners(listeners: ListenerItem[], eventName: string, event: Event){
+    let listener: ListenerItem;
     for(let i=0; i < listeners.length; i++){
       if (event.isPropagationStopped()) {
         break;
       }
-      listeners[i].listener(event);
-      // listeners[i].listener.apply(this, event);
+      listener = listeners[i];
+
+      if (listener.once){
+        this.removeListener(eventName, listener.listener);
+      }
+
+      listener.listener(event);
+      // listener.listener.apply(this, event);
     }
   }
 }
