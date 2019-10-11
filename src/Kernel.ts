@@ -65,6 +65,7 @@ class Kernel extends ServiceContainer implements KernelInterface{
 
   /**
    * Register service provider
+   * @todo It seems more suitable to change the name to `provider`, or `registerProvider`?
    * @param {ServiceProviderInterface} Provider
    * @param options
    */
