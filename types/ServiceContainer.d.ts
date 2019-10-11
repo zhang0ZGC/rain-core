@@ -30,6 +30,7 @@ export interface ContainerInterface {
     /**
      * Extend a exists instance in the container.
      * Modify services after definition.
+     * Must return a wrapped instance.
      *
      * A little same as decorator.
      * > An example for decorator:
@@ -42,7 +43,15 @@ export interface ContainerInterface {
      * })
      * ````
      */
-    extend(name: string, closure: ExtendClosure): void;
+    extend(name: string, func: ExtendClosure): void;
+    /**
+     * Register middleware.
+     * Similar to extend method, but middleware dose not return the instance.
+     * @param name
+     * @param [func]
+     */
+    middleware(name: string, func: Function): void;
+    middleware(func: Function): void;
     /**
      * Register a binding with the container.
      * @param {String} abstract
@@ -134,6 +143,12 @@ export default abstract class ServiceContainer implements ContainerInterface {
         [key: string]: ExtendClosure[];
     };
     /**
+     * Middlewares of services.
+     */
+    protected middlewares: {
+        [key: string]: Function[];
+    };
+    /**
      * @inheritDoc
      * @param id
      */
@@ -179,6 +194,12 @@ export default abstract class ServiceContainer implements ContainerInterface {
       * ````
       */
     extend(name: string, closure: ExtendClosure): void;
+    /**
+     * @inheritdoc
+     * @param name
+     * @param func
+     */
+    middleware(name: string | Function, func?: Function): this;
     /**
      * Assign tag|tags to bound object(s).
      *

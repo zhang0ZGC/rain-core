@@ -36,6 +36,7 @@ export interface ContainerInterface {
   /**
    * Extend a exists instance in the container.
    * Modify services after definition.
+   * Must return a wrapped instance.
    *
    * A little same as decorator.
    * > An example for decorator:
@@ -48,7 +49,16 @@ export interface ContainerInterface {
    * })
    * ````
    */
-  extend(name: string, closure: ExtendClosure): void;
+  extend(name: string, func: ExtendClosure): void;
+
+  /**
+   * Register middleware.
+   * Similar to extend method, but middleware dose not return the instance.
+   * @param name 
+   * @param [func]
+   */
+  middleware(name: string, func: Function): void;
+  middleware(func: Function): void;
 
   /**
    * Register a binding with the container.
@@ -141,6 +151,10 @@ export default abstract class ServiceContainer implements ContainerInterface {
    * The extend closures of services.
    */
   protected extenders: { [key: string]: ExtendClosure[] } = {};
+  /**
+   * Middlewares of services.
+   */
+  protected middlewares: { [key: string]: Function[]} = {};
 
   /**
    * @inheritDoc
@@ -232,6 +246,26 @@ export default abstract class ServiceContainer implements ContainerInterface {
          this.rebound(name);
        }
      }
+   }
+
+   /**
+    * @inheritdoc
+    * @param name 
+    * @param func 
+    */
+   public middleware(name: string | Function, func?: Function) {
+      if (typeof name === 'function'){
+        func = name;
+        name = '__GLOBAL';
+      }
+
+      // @todo Support nested service name 支持循环嵌套的service name
+      if (!this.middlewares){
+        this.middlewares[name] = [];
+      }
+      this.middlewares[name].push(func);
+
+      return this;
    }
 
   /**

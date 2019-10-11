@@ -70,6 +70,10 @@
              * The extend closures of services.
              */
             this.extenders = {};
+            /**
+             * Middlewares of services.
+             */
+            this.middlewares = {};
         }
         /**
          * @inheritDoc
@@ -154,6 +158,23 @@
                     this.rebound(name);
                 }
             }
+        };
+        /**
+         * @inheritdoc
+         * @param name
+         * @param func
+         */
+        ServiceContainer.prototype.middleware = function (name, func) {
+            if (typeof name === 'function') {
+                func = name;
+                name = '__GLOBAL';
+            }
+            // @todo Support nested service name 支持循环嵌套的service name
+            if (!this.middlewares) {
+                this.middlewares[name] = [];
+            }
+            this.middlewares[name].push(func);
+            return this;
         };
         /**
          * Assign tag|tags to bound object(s).
