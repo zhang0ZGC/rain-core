@@ -54,7 +54,7 @@ export interface ContainerInterface {
   /**
    * Register middleware.
    * Similar to extend method, but middleware dose not return the instance.
-   * @param name 
+   * @param name
    * @param [func]
    */
   middleware(name: string, func: Function): void;
@@ -124,6 +124,23 @@ type ExtendClosure = (item: any, kernel: ServiceContainer) => any;
 const getServiceNames = (name: string|string[]): string[] => {
   return Array.isArray(name) ? name : String(name).replace(/\s+/g, '').split(',')
 };
+
+function applyMiddlewares(middlewares: Function[], instance){
+  if (middlewares.length){
+    let idx = 0;
+    const next = function nextMiddleware(err?){
+      if (err){
+        throw err;
+      }
+
+      if (middlewares[idx]){
+        middlewares[idx++].call(null, instance, next);
+      }
+    };
+    next();
+  }
+  return instance;
+}
 
 export default abstract class ServiceContainer implements ContainerInterface {
   /**
@@ -220,7 +237,7 @@ export default abstract class ServiceContainer implements ContainerInterface {
   /**
    * Extend a exists instance in the container.
    *
-   * A little same as decorator.
+   * Same as decorator.
    * > An example for decorator:
    * ```js
    * Container.decorator('Test', function (test){
@@ -250,8 +267,16 @@ export default abstract class ServiceContainer implements ContainerInterface {
 
    /**
     * @inheritdoc
-    * @param name 
-    * @param func 
+    * @param name
+    * @param func
+    *
+    * @example
+    * ```js
+    * Container.middleware('Test', function(test, next){
+    *   test.someMethod();
+    *   next();
+    * })
+    * ```
     */
    public middleware(name: string | Function, func?: Function) {
       if (typeof name === 'function'){
@@ -379,6 +404,10 @@ export default abstract class ServiceContainer implements ContainerInterface {
         instance = extender(instance, this);
       });
 
+      // @todo Middleware process.
+      // @todo 处理 __GLOBAL 的middleware
+      applyMiddlewares(this.getMiddlewares(name), instance);
+
       if (this.isSingleton(name)) {
         this.instances[name] = instance;
       }
@@ -435,5 +464,9 @@ export default abstract class ServiceContainer implements ContainerInterface {
 
   protected getExtenders(name: string): ExtendClosure[] {
     return this.extenders[name] || [];
+  }
+
+  protected getMiddlewares(name: string): Function[] {
+    return this.middlewares[name] || [];
   }
 }
