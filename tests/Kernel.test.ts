@@ -41,6 +41,7 @@ describe("Kernel", () => {
     // @ts-ignore
     // delete global.window;
     kernel.register(CoreServiceProvider);
+    expect(window).toHaveProperty('RainOS');
   });
 
   test('Register service after booted', () => {
