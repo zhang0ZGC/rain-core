@@ -182,7 +182,7 @@ export default abstract class ServiceContainer implements ContainerInterface {
     /**
      * Extend a exists instance in the container.
      *
-     * A little same as decorator.
+     * Same as decorator.
      * > An example for decorator:
      * ```js
      * Container.decorator('Test', function (test){
@@ -198,6 +198,14 @@ export default abstract class ServiceContainer implements ContainerInterface {
      * @inheritdoc
      * @param name
      * @param func
+     *
+     * @example
+     * ```js
+     * Container.middleware('Test', function(test, next){
+     *   test.someMethod();
+     *   next();
+     * })
+     * ```
      */
     middleware(name: string | Function, func?: Function): this;
     /**
@@ -266,5 +274,6 @@ export default abstract class ServiceContainer implements ContainerInterface {
     protected rebound(name: any): void;
     protected build(name: string, parameters?: any[]): any;
     protected getExtenders(name: string): ExtendClosure[];
+    protected getMiddlewares(name: string): Function[];
 }
 export {};

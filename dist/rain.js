@@ -2,7 +2,7 @@
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
     typeof define === 'function' && define.amd ? define(['exports'], factory) :
     (global = global || self, factory(global.Rain = {}));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
     /*! *****************************************************************************
     Copyright (c) Microsoft Corporation. All rights reserved.
@@ -44,6 +44,21 @@
     var getServiceNames = function (name) {
         return Array.isArray(name) ? name : String(name).replace(/\s+/g, '').split(',');
     };
+    function applyMiddlewares(middlewares, instance) {
+        if (middlewares.length) {
+            var idx_1 = 0;
+            var next_1 = function nextMiddleware(err) {
+                if (err) {
+                    throw err;
+                }
+                if (middlewares[idx_1]) {
+                    middlewares[idx_1++].call(null, instance, next_1);
+                }
+            };
+            next_1();
+        }
+        return instance;
+    }
     var ServiceContainer = /** @class */ (function () {
         function ServiceContainer() {
             /**
@@ -132,7 +147,7 @@
         /**
          * Extend a exists instance in the container.
          *
-         * A little same as decorator.
+         * Same as decorator.
          * > An example for decorator:
          * ```js
          * Container.decorator('Test', function (test){
@@ -163,6 +178,14 @@
          * @inheritdoc
          * @param name
          * @param func
+         *
+         * @example
+         * ```js
+         * Container.middleware('Test', function(test, next){
+         *   test.someMethod();
+         *   next();
+         * })
+         * ```
          */
         ServiceContainer.prototype.middleware = function (name, func) {
             if (typeof name === 'function') {
@@ -293,6 +316,9 @@
                 _this.getExtenders(name).forEach(function (extender) {
                     instance = extender(instance, _this);
                 });
+                // @todo Middleware process.
+                // @todo 处理 __GLOBAL 的middleware
+                applyMiddlewares(_this.getMiddlewares(name), instance);
                 if (_this.isSingleton(name)) {
                     _this.instances[name] = instance;
                 }
@@ -343,33 +369,50 @@
         ServiceContainer.prototype.getExtenders = function (name) {
             return this.extenders[name] || [];
         };
+        ServiceContainer.prototype.getMiddlewares = function (name) {
+            return this.middlewares[name] || [];
+        };
         return ServiceContainer;
     }());
 
+    function getListenerIndex(listeners, listener) {
+        var l = listeners.length;
+        while (l--) {
+            if (listeners[l].listener === listener) {
+                return l;
+            }
+        }
+        return -1;
+    }
     var EventDispatcher = /** @class */ (function () {
         function EventDispatcher() {
             this.listeners = {};
-            this.sorted = {};
         }
         /**
-         * @inheritDoc
+         * Dispatch an event.
+         * @param eventName
+         * @param args
          */
-        EventDispatcher.prototype.dispatch = function (event, eventName) {
-            if (eventName === void 0) { eventName = null; }
+        EventDispatcher.prototype.dispatch = function (eventName, args) {
             if (eventName in this.listeners) {
                 var listeners = this.listeners[eventName];
-                this.callListeners(listeners, eventName, event);
+                this.callListeners(listeners, eventName, args);
             }
-            return event;
+            return this;
         };
         /**
-         * Alias of dispatch
-         * @param event
+         * Dispatch an event.
+         * Unlike dispatch, emit passes the remaining parameters instead of an array.
          * @param eventName
+         * @param args
          */
-        EventDispatcher.prototype.emit = function (event, eventName) {
-            if (eventName === void 0) { eventName = null; }
-            return this.dispatch.apply(this, arguments);
+        EventDispatcher.prototype.emit = function (eventName) {
+            var args = [];
+            for (var _i = 1; _i < arguments.length; _i++) {
+                args[_i - 1] = arguments[_i];
+            }
+            // const _args = Array.prototype.slice.call(arguments, 1);
+            return this.dispatch(eventName, args);
         };
         /**
          * Alias of addListener.
@@ -395,8 +438,17 @@
          * @param listener
          */
         EventDispatcher.prototype.off = function (eventName, listener) {
-            return this.removeListener(eventName, listener);
+            if (listener)
+                return this.removeListener(eventName, listener);
+            else
+                return this;
         };
+        /**
+         * Add event listener.
+         * @param eventName
+         * @param listener
+         * @param once
+         */
         EventDispatcher.prototype.addListener = function (eventName, listener, once) {
             if (once === void 0) { once = false; }
             if (!this.listeners[eventName]) {
@@ -415,18 +467,40 @@
             });
             return this;
         };
+        /**
+         * Remove event listener.
+         * @param eventName
+         * @param listener
+         */
         EventDispatcher.prototype.removeListener = function (eventName, listener) {
             var arr = this.listeners[eventName];
-            if (!arr)
-                return;
-            var idx = arr.findIndex(function (item) { return item.listener === listener; });
+            if (!arr || arr.length === 0)
+                return this;
+            var idx = getListenerIndex(arr, listener);
             if (idx !== -1) {
+                arr.splice(idx, 1);
+                /*
                 if (arr.length > 1) {
-                    this.listeners[eventName] = arr.slice(0, idx).concat(arr.slice(idx + 1));
+                  this.listeners[eventName] = arr.slice(0, idx).concat(arr.slice(idx + 1));
+                } else {
+                  delete this.listeners[eventName];
                 }
-                else {
-                    delete this.listeners[eventName];
-                }
+                */
+            }
+            return this;
+        };
+        /**
+         * Remove part listeners bound to eventName / all listeners of eventName / all listeners.
+         * @param eventName
+         * @param listeners
+         */
+        EventDispatcher.prototype.removeListeners = function (eventName, listeners) {
+            if (eventName && this.listeners[eventName]) {
+                // filter compatibility： IE>=9
+                this.listeners[eventName] = listeners ? this.listeners[eventName].filter(function (item) { return listeners.indexOf(item.listener) === -1; }) : [];
+            }
+            else {
+                this.listeners = {};
             }
             return this;
         };
@@ -445,64 +519,58 @@
          * @param eventName
          */
         EventDispatcher.prototype.getListeners = function (eventName) {
-            var _this = this;
             if (eventName) {
-                if (!this.listeners[eventName]) {
-                    return [];
-                }
-                if (!this.sorted[eventName]) {
-                    this.sortListeners(eventName);
-                }
-                return this.sorted[eventName];
+                return this.listeners[eventName] || [];
             }
-            Object.keys(this.listeners).forEach(function (key) {
-                if (!_this.sorted[key]) {
-                    _this.sortListeners(key);
-                }
-            });
-            return this.sorted;
-        };
-        /**
-         * Sort listener to.
-         * Todo: 按字母排序，使相同命名空间的listener在一起
-         * Todo: 指定排序字段，按值排序
-         * @param eventName
-         */
-        EventDispatcher.prototype.sortListeners = function (eventName) {
-            var sortedListeners = [];
-            var i = 0;
-            var allListenersCount = Object.keys(this.listeners).length;
-            var listeners;
-            var listener;
-            for (; i < allListenersCount; i++) {
-                listeners = this.listeners[eventName];
-                for (var j = 0; j < listeners.length; j++) {
-                    listener = listeners[j];
-                    sortedListeners.push(listener);
-                }
-            }
-            listeners = listener = null;
-            this.sorted[eventName] = sortedListeners;
+            return this.listeners;
         };
         /**
          * Process event listeners.
          * @param listeners
          * @param eventName
-         * @param event
+         * @param args
          */
-        EventDispatcher.prototype.callListeners = function (listeners, eventName, event) {
-            var listener;
-            for (var i = 0; i < listeners.length; i++) {
-                if (event.isPropagationStopped()) {
-                    break;
+        EventDispatcher.prototype.callListeners = function (listeners, eventName, args) {
+            var _this = this;
+            // listeners = Array.prototype.slice.call(listeners);
+            // const defer = typeof Promise === 'function' ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout;
+            var process = function () {
+                var listener;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                var result;
+                var start = +new Date();
+                while ((listener = listeners.shift())) {
+                    if (listener.once) {
+                        _this.removeListener(eventName, listener.listener);
+                    }
+                    // If result===false, stop listener call
+                    result = listener.listener.apply(_this, args || []);
+                    // result = listener.listener(args || [])
+                    if (result === false || +new Date() - start > 25) {
+                        break;
+                    }
                 }
-                listener = listeners[i];
-                if (listener.once) {
-                    this.removeListener(eventName, listener.listener);
+                if (result !== false && listener) {
+                    setTimeout(process);
+                    // requestAnimationFrame(process);
                 }
-                listener.listener(event);
-                // listener.listener.apply(this, event);
+            };
+            process();
+            /*
+            let listener: ListenerItem;
+            let result: any;
+            for (let i = 0; i < listeners.length; i++) {
+              listener = listeners[i];
+              if (listener.once) {
+                this.removeListener(eventName, listener.listener);
+              }
+        
+              // If return false, meaning stop event propagation
+              // listener.listener(event);
+              result = listener.listener.apply(this, args || []);
+              if (result === false) break;
             }
+            */
         };
         return EventDispatcher;
     }());
@@ -540,6 +608,7 @@
         };
         /**
          * Register service provider
+         * @todo It seems more suitable to change the name to `provider`, or `registerProvider`?
          * @param {ServiceProviderInterface} Provider
          * @param options
          */
@@ -646,5 +715,5 @@
 
     Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));
 //# sourceMappingURL=rain.js.map

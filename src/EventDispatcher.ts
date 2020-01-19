@@ -1,83 +1,48 @@
-interface ListenerItem{
-  listener: Function,
-  once?: boolean,
+interface ListenerItem {
+  listener: Function;
+  once?: boolean;
 }
 
-export interface EventDispatcherInterface {
-  /**
-   * Dispatch events.
-   */
-  dispatch<T>(event: T, eventName?: string): T;
+type ListenerItemKeyMap = {
+  [key: string]: ListenerItem[];
+};
+
+function getListenerIndex(listeners: ListenerItem[], listener: ListenerItem['listener']): number {
+  let l = listeners.length;
+  while (l--) {
+    if (listeners[l].listener === listener) {
+      return l;
+    }
+  }
+  return -1;
 }
 
-class Event {
-  protected propagationStopped: boolean = false;
-  protected defaultPrevented: boolean = false;
-
-  private eventData: {};
-
-  constructor(data, name: string){
-
-    this.eventData = {};
-  }
-
-  public stopPropagation(){
-    this.propagationStopped = true;
-  }
-
-  public preventDefault(){
-    this.defaultPrevented = true;
-  }
-
-  public get(key){
-    return this.eventData[key];
-  }
-
-  public set(key, data){
-    this.eventData[key] = data;
-  }
-
-
-  public isPropagationStopped(){
-    return this.propagationStopped;
-  }
-
-  public isDefaultPrevented(){
-    return this.defaultPrevented;
-  }
-
-}
-
-export function createEvent(eventName, data) {
-  return new Event(eventName, data);
-}
-
-
-class EventDispatcher {
-
-  private listeners: {[key: string]: Array<{listener: Function, once?: boolean}>} = {};
-  private sorted = {};
-
+class EventDispatcher<TEvent extends string = string> {
+  private listeners: ListenerItemKeyMap = {};
 
   /**
-   * @inheritDoc
+   * Dispatch an event.
+   * @param eventName
+   * @param args
    */
-  public dispatch(event: Event, eventName: string = null){
+  public dispatch(eventName: TEvent, args?: any[]): this {
     if (eventName in this.listeners) {
       const listeners = this.listeners[eventName];
-      this.callListeners(listeners, eventName, event);
+      this.callListeners(listeners, eventName, args);
     }
 
-    return event;
+    return this;
   }
 
   /**
-   * Alias of dispatch
-   * @param event 
-   * @param eventName 
+   * Dispatch an event.
+   * Unlike dispatch, emit passes the remaining parameters instead of an array.
+   * @param eventName
+   * @param args
    */
-  public emit(event: Event, eventName: string = null){
-    return this.dispatch.apply(this, arguments);
+  public emit(eventName: TEvent, ...args: any[]): this {
+    // const _args = Array.prototype.slice.call(arguments, 1);
+    return this.dispatch(eventName, args);
   }
 
   /**
@@ -86,7 +51,7 @@ class EventDispatcher {
    * @param listener
    * @param once
    */
-  public on(eventName: string, listener: Function, once: boolean = false): this{
+  public on(eventName: TEvent, listener: Function, once = false): this {
     return this.addListener(eventName, listener, once);
   }
 
@@ -95,7 +60,7 @@ class EventDispatcher {
    * @param eventName
    * @param listener
    */
-  public once(eventName: string, listener: Function): this{
+  public once(eventName: TEvent, listener: Function): this {
     return this.addListener(eventName, listener, true);
   }
 
@@ -104,12 +69,19 @@ class EventDispatcher {
    * @param eventName
    * @param listener
    */
-  public off(eventName: string, listener?: Function): this{
-    return this.removeListener(eventName, listener);
+  public off(eventName: TEvent, listener?: Function): this {
+    if (listener) return this.removeListener(eventName, listener);
+    else return this;
   }
 
-  public addListener(eventName: string, listener: Function, once: boolean= false): this{
-    if (!this.listeners[eventName]){
+  /**
+   * Add event listener.
+   * @param eventName
+   * @param listener
+   * @param once
+   */
+  public addListener(eventName: TEvent, listener: Function, once = false): this {
+    if (!this.listeners[eventName]) {
       this.listeners[eventName] = [];
     }
     // @todo filter repeat listener
@@ -128,16 +100,39 @@ class EventDispatcher {
     return this;
   }
 
-  public removeListener(eventName: string, listener: Function): this{
+  /**
+   * Remove event listener.
+   * @param eventName
+   * @param listener
+   */
+  public removeListener(eventName: TEvent, listener: Function): this {
     const arr = this.listeners[eventName];
-    if (!arr) return;
-    const idx = arr.findIndex(item => item.listener === listener);
-    if (idx !== -1){
-      if (arr.length > 1){
+    if (!arr || arr.length === 0) return this;
+    const idx = getListenerIndex(arr, listener);
+    if (idx !== -1) {
+      arr.splice(idx, 1);
+      /*
+      if (arr.length > 1) {
         this.listeners[eventName] = arr.slice(0, idx).concat(arr.slice(idx + 1));
       } else {
         delete this.listeners[eventName];
       }
+      */
+    }
+    return this;
+  }
+
+  /**
+   * Remove part listeners bound to eventName / all listeners of eventName / all listeners.
+   * @param eventName
+   * @param listeners
+   */
+  public removeListeners(eventName?: TEvent, listeners?: Function[]): this {
+    if (eventName && this.listeners[eventName]) {
+      // filter compatibility： IE>=9
+      this.listeners[eventName] = listeners ? this.listeners[eventName].filter(item => listeners.indexOf(item.listener) === -1) : [];
+    } else {
+      this.listeners = {};
     }
     return this;
   }
@@ -146,8 +141,8 @@ class EventDispatcher {
    * Check whether a event has binding listeners.
    * @param eventName
    */
-  public hasListeners(eventName?: string): boolean{
-    if (eventName){
+  public hasListeners(eventName?: TEvent): boolean {
+    if (eventName) {
       return this.listeners[eventName].length > 0;
     }
 
@@ -158,72 +153,61 @@ class EventDispatcher {
    * Get all listeners bound to the event.
    * @param eventName
    */
-  public getListeners(eventName?: string){
-    if (eventName){
-      if (!this.listeners[eventName]){
-        return [];
-      }
-      if (!this.sorted[eventName]){
-        this.sortListeners(eventName);
-      }
-      return this.sorted[eventName];
+  public getListeners(eventName?: TEvent): ListenerItem[] | ListenerItemKeyMap {
+    if (eventName) {
+      return this.listeners[eventName] || [];
     }
 
-    Object.keys(this.listeners).forEach(key => {
-      if (!this.sorted[key]){
-        this.sortListeners(key);
-      }
-    });
-    return this.sorted;
-  }
-
-  /**
-   * Sort listener to.
-   * Todo: 按字母排序，使相同命名空间的listener在一起
-   * Todo: 指定排序字段，按值排序
-   * @param eventName
-   */
-  protected sortListeners(eventName: string){
-
-    const sortedListeners = [];
-
-    let i = 0;
-    let allListenersCount = Object.keys(this.listeners).length;
-    let listeners;
-    let listener;
-    for(; i < allListenersCount; i++){
-      listeners = this.listeners[eventName];
-      for (let j = 0; j < listeners.length; j++){
-
-        listener = listeners[j];
-        sortedListeners.push(listener)
-      }
-    }
-    listeners = listener = null;
-    this.sorted[eventName] = sortedListeners;
+    return this.listeners;
   }
 
   /**
    * Process event listeners.
    * @param listeners
    * @param eventName
-   * @param event
+   * @param args
    */
-  protected callListeners(listeners: ListenerItem[], eventName: string, event: Event){
-    let listener: ListenerItem;
-    for(let i=0; i < listeners.length; i++){
-      if (event.isPropagationStopped()) {
-        break;
+  protected callListeners(listeners: ListenerItem[], eventName: TEvent, args?: any[]): void {
+    // listeners = Array.prototype.slice.call(listeners);
+    // const defer = typeof Promise === 'function' ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout;
+    const process = (): void => {
+      let listener: ListenerItem | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let result: false | any;
+      const start = +new Date();
+      while ((listener = listeners.shift())) {
+        if (listener.once) {
+          this.removeListener(eventName, listener.listener);
+        }
+        // If result===false, stop listener call
+        result = listener.listener.apply(this, args || []);
+        // result = listener.listener(args || [])
+        if (result === false || +new Date() - start > 25) {
+          break;
+        }
       }
-      listener = listeners[i];
+      if (result !== false && listener) {
+        setTimeout(process);
+        // requestAnimationFrame(process);
+      }
+    };
+    process();
 
-      if (listener.once){
+    /*
+    let listener: ListenerItem;
+    let result: any;
+    for (let i = 0; i < listeners.length; i++) {
+      listener = listeners[i];
+      if (listener.once) {
         this.removeListener(eventName, listener.listener);
       }
 
-      listener.listener(event);
-      // listener.listener.apply(this, event);
+      // If return false, meaning stop event propagation
+      // listener.listener(event);
+      result = listener.listener.apply(this, args || []);
+      if (result === false) break;
     }
+    */
   }
 }
 

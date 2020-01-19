@@ -2,82 +2,78 @@ interface ListenerItem {
     listener: Function;
     once?: boolean;
 }
-export interface EventDispatcherInterface {
-    /**
-     * Dispatch events.
-     */
-    dispatch<T>(event: T, eventName?: string): T;
-}
-declare class Event {
-    protected propagationStopped: boolean;
-    protected defaultPrevented: boolean;
-    private eventData;
-    constructor(data: any, name: string);
-    stopPropagation(): void;
-    preventDefault(): void;
-    get(key: any): any;
-    set(key: any, data: any): void;
-    isPropagationStopped(): boolean;
-    isDefaultPrevented(): boolean;
-}
-export declare function createEvent(eventName: any, data: any): Event;
-declare class EventDispatcher {
+declare type ListenerItemKeyMap = {
+    [key: string]: ListenerItem[];
+};
+declare class EventDispatcher<TEvent extends string = string> {
     private listeners;
-    private sorted;
     /**
-     * @inheritDoc
-     */
-    dispatch(event: Event, eventName?: string): Event;
-    /**
-     * Alias of dispatch
-     * @param event
+     * Dispatch an event.
      * @param eventName
+     * @param args
      */
-    emit(event: Event, eventName?: string): any;
+    dispatch(eventName: TEvent, args?: any[]): this;
+    /**
+     * Dispatch an event.
+     * Unlike dispatch, emit passes the remaining parameters instead of an array.
+     * @param eventName
+     * @param args
+     */
+    emit(eventName: TEvent, ...args: any[]): this;
     /**
      * Alias of addListener.
      * @param eventName
      * @param listener
      * @param once
      */
-    on(eventName: string, listener: Function, once?: boolean): this;
+    on(eventName: TEvent, listener: Function, once?: boolean): this;
     /**
      * Alias of addListener(eventName, listener, true)
      * @param eventName
      * @param listener
      */
-    once(eventName: string, listener: Function): this;
+    once(eventName: TEvent, listener: Function): this;
     /**
      * Alias of removeListener.
      * @param eventName
      * @param listener
      */
-    off(eventName: string, listener?: Function): this;
-    addListener(eventName: string, listener: Function, once?: boolean): this;
-    removeListener(eventName: string, listener: Function): this;
+    off(eventName: TEvent, listener?: Function): this;
+    /**
+     * Add event listener.
+     * @param eventName
+     * @param listener
+     * @param once
+     */
+    addListener(eventName: TEvent, listener: Function, once?: boolean): this;
+    /**
+     * Remove event listener.
+     * @param eventName
+     * @param listener
+     */
+    removeListener(eventName: TEvent, listener: Function): this;
+    /**
+     * Remove part listeners bound to eventName / all listeners of eventName / all listeners.
+     * @param eventName
+     * @param listeners
+     */
+    removeListeners(eventName?: TEvent, listeners?: Function[]): this;
     /**
      * Check whether a event has binding listeners.
      * @param eventName
      */
-    hasListeners(eventName?: string): boolean;
+    hasListeners(eventName?: TEvent): boolean;
     /**
      * Get all listeners bound to the event.
      * @param eventName
      */
-    getListeners(eventName?: string): any;
-    /**
-     * Sort listener to.
-     * Todo: 按字母排序，使相同命名空间的listener在一起
-     * Todo: 指定排序字段，按值排序
-     * @param eventName
-     */
-    protected sortListeners(eventName: string): void;
+    getListeners(eventName?: TEvent): ListenerItem[] | ListenerItemKeyMap;
     /**
      * Process event listeners.
      * @param listeners
      * @param eventName
-     * @param event
+     * @param args
      */
-    protected callListeners(listeners: ListenerItem[], eventName: string, event: Event): void;
+    protected callListeners(listeners: ListenerItem[], eventName: TEvent, args?: any[]): void;
 }
 export default EventDispatcher;
