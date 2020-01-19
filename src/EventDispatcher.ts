@@ -1,9 +1,9 @@
-interface ListenerItem {
+export interface ListenerItem {
   listener: Function;
   once?: boolean;
 }
 
-type ListenerItemKeyMap = {
+export type ListenerItemKeyMap = {
   [key: string]: ListenerItem[];
 };
 
