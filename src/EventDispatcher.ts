@@ -168,7 +168,7 @@ class EventDispatcher<TEvent extends string = string> {
    * @param args
    */
   protected callListeners(listeners: ListenerItem[], eventName: TEvent, args?: any[]): void {
-    // listeners = Array.prototype.slice.call(listeners);
+    listeners = Array.prototype.slice.call(listeners);
     // const defer = typeof Promise === 'function' ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout;
     const process = (): void => {
       let listener: ListenerItem | undefined;
